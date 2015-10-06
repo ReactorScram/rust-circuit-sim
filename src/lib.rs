@@ -1,12 +1,64 @@
 #[test]
-fn it_works() {
-	let world = World::new_half_adder ();
+fn test_sorting () {
+	let mut unsorted = vec! [3, 2, 1];
+	
+	let sorted = vec! [1, 2, 3];
+	
+	unsorted.sort_by (|a, b| a.cmp (b));
+	
+	assert_eq! (unsorted, sorted);
+}
+
+#[test]
+pub fn it_works() {
+	let mut world = World::new_half_adder ();
+	println! ("Constructed world");
+	// This has to be done for initialization, it should be automated
+	world.step_gates ();
+	
+	world.step_to_settled ();
+	
+	assert_eq! (world.junctions [3], false);
+	assert_eq! (world.junctions [7], false);
+	
+	world.delays.push (Delay {
+		junction: 0,
+		level: true,
+		time: world.time,
+	});
+	
+	world.step_to_settled ();
+	
+	assert_eq! (world.junctions [3], false);
+	assert_eq! (world.junctions [7], true);
+	
+	world.delays.push (Delay {
+		junction: 8,
+		level: true,
+		time: world.time,
+	});
+	
+	world.step_to_settled ();
+	
+	assert_eq! (world.junctions [3], true);
+	assert_eq! (world.junctions [7], false);
+	
+	world.delays.push (Delay {
+		junction: 0,
+		level: false,
+		time: world.time,
+	});
+	
+	world.step_to_settled ();
+	
+	assert_eq! (world.junctions [3], false);
+	assert_eq! (world.junctions [7], true);
 }
 
 // 2 billion junctions is good enough for now
-type JunctionIndex = i32;
-type ElementIndex = i32;
-type OutputIndex = i8;
+type JunctionIndex = usize;
+type ElementIndex = u32;
+type OutputIndex = u8;
 type Time = i64;
 type Level = bool;
 
@@ -17,12 +69,14 @@ enum GateBehavior {
 }
 
 // In the future, at time "time", junction "junction" will be set to level "level".
+#[derive (Clone, Copy)]
 pub struct Delay {
 	junction: JunctionIndex,
 	level: Level,
 	time: Time,
 }
 
+#[derive (Clone, Copy)]
 pub struct Wire {
 	input: JunctionIndex,
 	output: JunctionIndex,
@@ -54,6 +108,11 @@ impl Wire {
 	}
 }
 
+enum JunctionDestiny {
+	Settled (Level),
+	Eventually (Delay),
+}
+
 impl World {
 	fn new_half_adder () -> World {
 		World {
@@ -70,16 +129,147 @@ impl World {
 			],
 			gates: vec![
 				Gate {
-					inputs: vec![2, 5],
-					output: 3,
+					inputs: vec![1, 4],
+					output: 2,
 					behavior: GateBehavior::And,
 				},
 				Gate {
-					inputs: vec![6, 10],
-					output: 7,
+					inputs: vec![5, 9],
+					output: 6,
 					behavior: GateBehavior::Xor,
 				},
 			],
+		}
+	}
+	
+	fn is_settled (& self) -> bool {
+		self.delays.len () == 0
+	}
+	
+	fn sort_delays (&mut self) {
+		// This step is just a safety since we should be insertion sorting the delays already
+		self.delays.sort_by (|a, b| a.time.cmp (&b.time));
+	}
+	
+	fn step_gates (&mut self) {
+		let mut new_delays = Vec::<Delay>::new ();
+		
+		// TODO: Optimize to only touch gates whose inputs have changed
+		for gate in self.gates.iter () {
+			let inputs: Vec <bool> = gate.inputs.iter ().map (|i| self.junctions [*i]).collect ();
+			
+			let output = match gate.behavior {
+				GateBehavior::And => inputs.iter ().fold (true, |sum, a| sum && *a),
+				GateBehavior::Xor => inputs.iter ().fold (false, |sum, a| sum ^ *a),
+				GateBehavior::Inverter => inputs [0],
+			};
+			
+			let destiny = self.get_junction_destiny (gate.output);
+			let destinyLevel = match destiny {
+				JunctionDestiny::Settled (level) => level,
+				JunctionDestiny::Eventually (delay) => delay.level,
+			};
+			
+			if destinyLevel != output {
+				new_delays.push (Delay {
+					junction: gate.output,
+					time: self.time,
+					level: output,
+				});
+				
+				println! ("Gate {} set to {}", gate.output, output);
+			}
+		};
+		
+		for delay in new_delays {
+			self.delays.push (delay);
+		}
+		
+		// TODO: Proper insertion sorting
+		self.sort_delays ();
+	}
+	
+	fn get_junction_destiny (& self, junction: JunctionIndex) -> JunctionDestiny {
+		if self.delays.len () > 0 {
+			//println! ("Delays:");
+			
+			for i in 0 .. self.delays.len () {
+				let delay: Delay = self.delays [self.delays.len () - i - 1];
+				
+				//println! ("At {} junction {} will be {}", delay.time, delay.junction, delay.level);
+				
+				if delay.junction == junction {
+					return JunctionDestiny::Eventually (delay);
+				}
+			}
+		}
+		
+		JunctionDestiny::Settled (self.junctions [junction])
+	}
+	
+	fn step_wires (&mut self) {
+		for wire in self.wires.iter () {
+			let input = self.junctions [wire.input];
+			
+			// Don't push redundant delays
+			let destiny = self.get_junction_destiny (wire.output);
+			let destinyLevel = match destiny {
+				JunctionDestiny::Settled (level) => level,
+				JunctionDestiny::Eventually (delay) => delay.level,
+			};
+			
+			if input != destinyLevel {
+				self.delays.push (Delay {
+					junction: wire.output,
+					time: self.time + wire.delay,
+					level: input,
+				});
+				
+				let destiny_type = match destiny {
+					JunctionDestiny::Settled (_) => "Settled",
+					JunctionDestiny::Eventually (_) => "Eventually",
+				};
+				
+				//println! ("Wire {} set to {}", wire.output, input);
+			}
+		};
+		
+		// TODO: Proper insertion sorting
+		self.sort_delays ();
+	}
+	
+	fn propagate_delays (&mut self) {
+		let next_time = self.delays [0].time;
+		
+		for delay in self.delays.iter () {
+			if delay.time == next_time {
+				self.junctions [delay.junction] = delay.level;
+				
+				println! ("Junction {} set to {}", delay.junction, delay.level);
+			}
+		}
+		
+		self.delays.retain (|delay| delay.time > next_time);
+		
+		self.time = next_time;
+	}
+	
+	fn step (&mut self) {
+		if self.is_settled () {
+			return;
+		}
+		
+		self.sort_delays ();
+		
+		self.propagate_delays ();
+		
+		self.step_gates ();
+		self.step_wires ();
+	}
+	
+	fn step_to_settled (&mut self) {
+		while ! self.is_settled () {
+			self.step ();
 		}
 	}
 }
