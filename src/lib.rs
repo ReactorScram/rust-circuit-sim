@@ -12,10 +12,6 @@ fn test_sorting () {
 #[test]
 pub fn it_works() {
 	let mut world = World::new_half_adder ();
-	println! ("Constructed world");
-	// This has to be done for initialization, it should be automated
-	world.step_gates ();
-	
 	world.step_to_settled ();
 	
 	assert_eq! (world.junctions [3], false);
