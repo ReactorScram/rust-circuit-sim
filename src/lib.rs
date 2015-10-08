@@ -37,7 +37,7 @@ pub struct World {
 	wires: Vec <Wire>,
 	gates: Vec <Gate>,
 	
-	junctions: Vec <bool>,
+	junctions: Vec <Level>,
 	time: Time,
 	delays: Vec <Delay>,
 }
