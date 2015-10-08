@@ -1,44 +1,3 @@
-#[test]
-fn test_sorting () {
-	let mut unsorted = vec! [3, 2, 1];
-	
-	let sorted = vec! [1, 2, 3];
-	
-	unsorted.sort_by (|a, b| a.cmp (b));
-	
-	assert_eq! (unsorted, sorted);
-}
-
-#[test]
-pub fn it_works() {
-	let mut world = World::new_half_adder ();
-	world.step_to_settled ();
-	
-	assert_eq! (world.junctions [3], false);
-	assert_eq! (world.junctions [7], false);
-	
-	world.set_junction (0, true);
-	
-	world.step_to_settled ();
-	
-	assert_eq! (world.junctions [3], false);
-	assert_eq! (world.junctions [7], true);
-	
-	world.set_junction (8, true);
-	
-	world.step_to_settled ();
-	
-	assert_eq! (world.junctions [3], true);
-	assert_eq! (world.junctions [7], false);
-	
-	world.set_junction (0, false);
-	
-	world.step_to_settled ();
-	
-	assert_eq! (world.junctions [3], false);
-	assert_eq! (world.junctions [7], true);
-}
-
 use std::cmp;
 
 // 2 billion junctions is good enough for now
@@ -278,4 +237,39 @@ impl World {
 			self.step ();
 		}
 	}
+}
+
+#[test]
+pub fn test_half_adder () {
+	let mut world = World::new_half_adder ();
+	world.step_to_settled ();
+	
+	let assert_outputs = |world: &World, msb: Level, lsb: Level| {
+		assert_eq! (world.junctions [3], msb);
+		assert_eq! (world.junctions [7], lsb);
+	};
+	
+	assert_outputs (&world, false, false);
+	
+	// Junctions 0 and 8 are the input bits
+	
+	world.set_junction (0, true);
+	world.step_to_settled ();
+	assert_outputs (&world, false, true);
+	
+	world.set_junction (8, true);
+	world.step_to_settled ();
+	assert_outputs (&world, true, false);
+	
+	world.set_junction (0, false);
+	world.step_to_settled ();
+	assert_outputs (&world, false, true);
+}
+
+#[test]
+pub fn test_full_adder () {
+	//let mut world = World::new_full_adder ();
+	//world.step_to_settled ();
+	
+	
 }
