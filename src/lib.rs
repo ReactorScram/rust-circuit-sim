@@ -108,13 +108,50 @@ impl World {
 			},
 		])
 	}
-	/*
+	
 	pub fn new_full_adder () -> World {
 		World::new (
 		vec![
-			Wire::new (
+			(0, 3, 1),
+			(0, 5, 1),
+			(1, 4, 1),
+			(1, 6, 1),
+			(2, 11, 1),
+			(2, 9, 1),
+			(7, 10, 1),
+			(7, 8, 1),
+			(12, 14, 1),
+			(13, 15, 1),
+		],
+		vec![
+			Gate {
+				inputs: vec![3, 4],
+				output: 7,
+				behavior: GateBehavior::Xor,
+			},
+			Gate {
+				inputs: vec![10, 11],
+				output: 16,
+				behavior: GateBehavior::Xor,
+			},
+			Gate {
+				inputs: vec![8, 9],
+				output: 12,
+				behavior: GateBehavior::And,
+			},
+			Gate {
+				inputs: vec![5, 6],
+				output: 13,
+				behavior: GateBehavior::And,
+			},
+			Gate {
+				inputs: vec![14, 15],
+				output: 17,
+				behavior: GateBehavior::Or,
+			},
+		])
 	}
-	*/
+	
 	pub fn is_settled (& self) -> bool {
 		self.delays.len () == 0
 	}
@@ -275,12 +312,31 @@ pub fn test_half_adder () {
 	world.step_to_settled ();
 	assert_outputs (&world, false, true);
 }
-/*
+
 #[test]
 pub fn test_full_adder () {
 	let mut world = World::new_full_adder ();
 	world.step_to_settled ();
 	
+	let assert_outputs = |world: &mut World, a: Level, b: Level, c: Level, carry: Level, sum: Level| {
+		world.set_junction (0, a);
+		world.set_junction (1, b);
+		world.set_junction (2, c);
+		
+		world.step_to_settled ();
+		
+		assert_eq! (world.junctions [17], carry);
+		assert_eq! (world.junctions [16], sum);
+	};
 	
+	// Truth table for a full adder
+	assert_outputs (&mut world, false, false, false, false, false);
+	assert_outputs (&mut world, false, false, true, false, true);
+	assert_outputs (&mut world, false, true, true, true, false);
+	assert_outputs (&mut world, false, true, false, false, true);
+	
+	assert_outputs (&mut world, true, true, false, true, false);
+	assert_outputs (&mut world, true, true, true, true, true);
+	assert_outputs (&mut world, true, false, true, true, false);
+	assert_outputs (&mut world, true, false, false, false, true);
 }
-*/
