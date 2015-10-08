@@ -6,8 +6,9 @@ pub type Time = i64;
 pub type Level = bool;
 
 pub enum GateBehavior {
-	Inverter,
 	And,
+	Not,
+	Or,
 	Xor,
 }
 
@@ -57,7 +58,9 @@ enum JunctionDestiny {
 }
 
 impl World {
-	pub fn new (wires: Vec <Wire>, gates: Vec <Gate>) -> World {
+	pub fn new (wire_tuples: Vec <(JunctionIndex, JunctionIndex, Time)>, gates: Vec <Gate>) -> World {
+		let wires: Vec <Wire> = wire_tuples.iter ().map (|tuple| Wire::new (tuple.0, tuple.1, tuple.2)).collect ();
+		
 		let max_junction_wires = wires.iter ().fold (0, |max, wire| cmp::max (max, cmp::max (wire.input, wire.output)));
 		let max_junction_gates = gates.iter ().fold (0, |max, gate| {
 			let max_input = gate.inputs.iter ().max ();
@@ -85,12 +88,12 @@ impl World {
 	pub fn new_half_adder () -> World {
 		World::new (
 		vec![
-			Wire::new (0, 1, 4),
-			Wire::new (0, 5, 8),
-			Wire::new (2, 3, 4),
-			Wire::new (6, 7, 3),
-			Wire::new (8, 4, 8),
-			Wire::new (8, 9, 4),
+			(0, 1, 4),
+			(0, 5, 8),
+			(2, 3, 4),
+			(6, 7, 3),
+			(8, 4, 8),
+			(8, 9, 4),
 		],
 		vec![
 			Gate {
@@ -105,7 +108,13 @@ impl World {
 			},
 		])
 	}
-	
+	/*
+	pub fn new_full_adder () -> World {
+		World::new (
+		vec![
+			Wire::new (
+	}
+	*/
 	pub fn is_settled (& self) -> bool {
 		self.delays.len () == 0
 	}
@@ -124,8 +133,9 @@ impl World {
 			
 			let output = match gate.behavior {
 				GateBehavior::And => inputs.iter ().fold (true, |sum, a| sum && *a),
+				GateBehavior::Not => ! inputs [0],
+				GateBehavior::Or => inputs.iter ().fold (false, |sum, a| sum || *a),
 				GateBehavior::Xor => inputs.iter ().fold (false, |sum, a| sum ^ *a),
-				GateBehavior::Inverter => ! inputs [0],
 			};
 			
 			let destiny = self.get_junction_destiny (gate.output);
@@ -265,11 +275,12 @@ pub fn test_half_adder () {
 	world.step_to_settled ();
 	assert_outputs (&world, false, true);
 }
-
+/*
 #[test]
 pub fn test_full_adder () {
-	//let mut world = World::new_full_adder ();
-	//world.step_to_settled ();
+	let mut world = World::new_full_adder ();
+	world.step_to_settled ();
 	
 	
 }
+*/
