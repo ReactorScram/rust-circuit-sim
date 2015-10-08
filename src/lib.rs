@@ -21,33 +21,21 @@ pub fn it_works() {
 	assert_eq! (world.junctions [3], false);
 	assert_eq! (world.junctions [7], false);
 	
-	world.delays.push (Delay {
-		junction: 0,
-		level: true,
-		time: world.time,
-	});
+	world.set_junction (0, true);
 	
 	world.step_to_settled ();
 	
 	assert_eq! (world.junctions [3], false);
 	assert_eq! (world.junctions [7], true);
 	
-	world.delays.push (Delay {
-		junction: 8,
-		level: true,
-		time: world.time,
-	});
+	world.set_junction (8, true);
 	
 	world.step_to_settled ();
 	
 	assert_eq! (world.junctions [3], true);
 	assert_eq! (world.junctions [7], false);
 	
-	world.delays.push (Delay {
-		junction: 0,
-		level: false,
-		time: world.time,
-	});
+	world.set_junction (0, false);
 	
 	world.step_to_settled ();
 	
@@ -56,13 +44,11 @@ pub fn it_works() {
 }
 
 // 2 billion junctions is good enough for now
-type JunctionIndex = usize;
-type ElementIndex = u32;
-type OutputIndex = u8;
-type Time = i64;
-type Level = bool;
+pub type JunctionIndex = usize;
+pub type Time = i64;
+pub type Level = bool;
 
-enum GateBehavior {
+pub enum GateBehavior {
 	Inverter,
 	And,
 	Xor,
@@ -114,7 +100,7 @@ enum JunctionDestiny {
 }
 
 impl World {
-	fn new_half_adder () -> World {
+	pub fn new_half_adder () -> World {
 		World {
 			time: 0,
 			delays: vec![],
@@ -142,7 +128,7 @@ impl World {
 		}
 	}
 	
-	fn is_settled (& self) -> bool {
+	pub fn is_settled (& self) -> bool {
 		self.delays.len () == 0
 	}
 	
@@ -161,16 +147,16 @@ impl World {
 			let output = match gate.behavior {
 				GateBehavior::And => inputs.iter ().fold (true, |sum, a| sum && *a),
 				GateBehavior::Xor => inputs.iter ().fold (false, |sum, a| sum ^ *a),
-				GateBehavior::Inverter => inputs [0],
+				GateBehavior::Inverter => ! inputs [0],
 			};
 			
 			let destiny = self.get_junction_destiny (gate.output);
-			let destinyLevel = match destiny {
+			let destiny_level = match destiny {
 				JunctionDestiny::Settled (level) => level,
 				JunctionDestiny::Eventually (delay) => delay.level,
 			};
 			
-			if destinyLevel != output {
+			if destiny_level != output {
 				new_delays.push (Delay {
 					junction: gate.output,
 					time: self.time,
@@ -213,24 +199,17 @@ impl World {
 			
 			// Don't push redundant delays
 			let destiny = self.get_junction_destiny (wire.output);
-			let destinyLevel = match destiny {
+			let destiny_level = match destiny {
 				JunctionDestiny::Settled (level) => level,
 				JunctionDestiny::Eventually (delay) => delay.level,
 			};
 			
-			if input != destinyLevel {
+			if input != destiny_level {
 				self.delays.push (Delay {
 					junction: wire.output,
 					time: self.time + wire.delay,
 					level: input,
 				});
-				
-				let destiny_type = match destiny {
-					JunctionDestiny::Settled (_) => "Settled",
-					JunctionDestiny::Eventually (_) => "Eventually",
-				};
-				
-				//println! ("Wire {} set to {}", wire.output, input);
 			}
 		};
 		
@@ -254,7 +233,15 @@ impl World {
 		self.time = next_time;
 	}
 	
-	fn step (&mut self) {
+	pub fn set_junction (&mut self, junction: JunctionIndex, level: Level) {
+		self.delays.push (Delay {
+			junction: junction,
+			level: level,
+			time: self.time,
+		});
+	}
+	
+	pub fn step (&mut self) {
 		if self.is_settled () {
 			return;
 		}
@@ -267,7 +254,7 @@ impl World {
 		self.step_wires ();
 	}
 	
-	fn step_to_settled (&mut self) {
+	pub fn step_to_settled (&mut self) {
 		while ! self.is_settled () {
 			self.step ();
 		}
