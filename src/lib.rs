@@ -43,6 +43,8 @@ pub fn it_works() {
 	assert_eq! (world.junctions [7], true);
 }
 
+use std::cmp;
+
 // 2 billion junctions is good enough for now
 pub type JunctionIndex = usize;
 pub type Time = i64;
@@ -100,32 +102,53 @@ enum JunctionDestiny {
 }
 
 impl World {
-	pub fn new_half_adder () -> World {
+	pub fn new (wires: Vec <Wire>, gates: Vec <Gate>) -> World {
+		let max_junction_wires = wires.iter ().fold (0, |max, wire| cmp::max (max, cmp::max (wire.input, wire.output)));
+		let max_junction_gates = gates.iter ().fold (0, |max, gate| {
+			let max_input = gate.inputs.iter ().max ();
+			
+			let max_junction_gate = match max_input {
+				Option::Some (junction) => cmp::max (*junction, gate.output),
+				Option::None => gate.output,
+			};
+			
+			cmp::max (max, max_junction_gate)
+		});
+		
+		let max_junction = cmp::max (max_junction_gates, max_junction_wires);
+		let junction_count = max_junction + 1;
+		
 		World {
 			time: 0,
 			delays: vec![],
-			junctions: vec![false; 10],
-			wires: vec![
-				Wire::new (0, 1, 4),
-				Wire::new (0, 5, 8),
-				Wire::new (2, 3, 4),
-				Wire::new (6, 7, 3),
-				Wire::new (8, 4, 8),
-				Wire::new (8, 9, 4),
-			],
-			gates: vec![
-				Gate {
-					inputs: vec![1, 4],
-					output: 2,
-					behavior: GateBehavior::And,
-				},
-				Gate {
-					inputs: vec![5, 9],
-					output: 6,
-					behavior: GateBehavior::Xor,
-				},
-			],
+			junctions: vec![false; junction_count],
+			wires: wires,
+			gates: gates,
 		}
+	}
+	
+	pub fn new_half_adder () -> World {
+		World::new (
+		vec![
+			Wire::new (0, 1, 4),
+			Wire::new (0, 5, 8),
+			Wire::new (2, 3, 4),
+			Wire::new (6, 7, 3),
+			Wire::new (8, 4, 8),
+			Wire::new (8, 9, 4),
+		],
+		vec![
+			Gate {
+				inputs: vec![1, 4],
+				output: 2,
+				behavior: GateBehavior::And,
+			},
+			Gate {
+				inputs: vec![5, 9],
+				output: 6,
+				behavior: GateBehavior::Xor,
+			},
+		])
 	}
 	
 	pub fn is_settled (& self) -> bool {
