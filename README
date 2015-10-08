@@ -2,30 +2,30 @@ A crude digital logic sim in Rust.
 
 See functions test_half_adder and test_full_adder for example usage.
 
-A World represents a simulation. A World has Wires, which can have propagation delay,
-Gates which can perform logical operations, Junctions which hold a voltage level,
-Delays which represent currently-propagating signals, and Time which is the current 
-simulated time.
+A World represents a simulation. A World has Wires, which can have propagation 
+delay, Gates which can perform logical operations, Junctions which hold a 
+voltage level, Delays which represent currently-propagating signals, and Time 
+which is the current simulated time.
 
 Stepping the world advances the simulation time by the minimum amount of time
 required for at least one signal (Delay) to propagate to its destination.
 
-The simulated time is a 64-bit integer. Because there is no floating-point rounding,
-the simulation should be deterministic across platforms.
+The simulated time is a 64-bit integer. Because there is no floating-point 
+rounding, the simulation should be deterministic across platforms.
 
-A Junction is a point in the circuit that has a voltage. Junctions have no other
-state.
+A Junction is a point in the circuit that has a voltage. Junctions have no 
+other state.
 
 A Wire connects two Junctions directionally. Connecting Wires in a loop results
-in undefined behavior. A single Wire has no fan-in or fan-out. Multiple wires may
-fan out from a junction, but multiple wires with the same output junction may
-have undefined behavior. Each Wire has a delay factor. When a signal enters a Wire,
-the signal is stored in World::delays until the delay has passed, at which point
-it instantly appears at the output junction of the Wire.
+in undefined behavior. A single Wire has no fan-in or fan-out. Multiple wires 
+may fan out from a junction, but multiple wires with the same output junction 
+may have undefined behavior. Each Wire has a delay factor. When a signal enters 
+a Wire, the signal is stored in World::delays until the delay has passed, at 
+which point it instantly appears at the output junction of the Wire.
 
 A Gate connects one or more input junctions to one output junction. Gates
-currently have no internal state and no delay factor. When a signal reaches a Gate,
-the result is computed and transmitted to the output instantly.
+currently have no internal state and no delay factor. When a signal reaches a 
+Gate, the result is computed and transmitted to the output instantly.
 
 TODO:
 
