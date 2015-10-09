@@ -42,6 +42,11 @@ pub struct World {
 	signals: Vec <Signal>,
 }
 
+pub enum WorldCreationErr {
+	// Two elements point to the same junction, this is illegal
+	FanIn,
+}
+
 impl Wire {
 	fn new (input: JunctionIndex, output: JunctionIndex, delay: Time) -> Wire {
 		Wire {
@@ -53,7 +58,7 @@ impl Wire {
 }
 
 impl World {
-	pub fn new (wire_tuples: Vec <(JunctionIndex, JunctionIndex, Time)>, gates: Vec <Gate>) -> World {
+	pub fn new (wire_tuples: Vec <(JunctionIndex, JunctionIndex, Time)>, gates: Vec <Gate>) -> Result <World, WorldCreationErr> {
 		let wires: Vec <Wire> = wire_tuples.iter ().map (|tuple| Wire::new (tuple.0, tuple.1, tuple.2)).collect ();
 		
 		let max_junction_wires = wires.iter ().fold (0, |max, wire| cmp::max (max, cmp::max (wire.input, wire.output)));
@@ -71,13 +76,31 @@ impl World {
 		let max_junction = cmp::max (max_junction_gates, max_junction_wires);
 		let junction_count = max_junction + 1;
 		
-		World {
+		let mut junction_has_input = vec! [false; junction_count];
+		
+		for wire in wires.iter () {
+			if junction_has_input [wire.output] {
+				return Err (WorldCreationErr::FanIn)
+			}
+			
+			junction_has_input [wire.output] = true;
+		}
+		
+		for gate in gates.iter () {
+			if junction_has_input [gate.output] {
+				return Err (WorldCreationErr::FanIn);
+			}
+			
+			junction_has_input [gate.output] = true;
+		}
+		
+		Ok (World {
 			time: 0,
 			signals: vec![],
 			junctions: vec![false; junction_count],
 			wires: wires,
 			gates: gates,
-		}
+		})
 	}
 	
 	pub fn new_half_adder () -> World {
@@ -101,7 +124,7 @@ impl World {
 				output: 6,
 				behavior: GateBehavior::Xor,
 			},
-		])
+		]).ok ().expect ("Half adder circuit is invalid")
 	}
 	
 	pub fn new_full_adder () -> World {
@@ -144,7 +167,7 @@ impl World {
 				output: 17,
 				behavior: GateBehavior::Or,
 			},
-		])
+		]).ok ().expect ("Full adder circuit is invalid")
 	}
 	
 	pub fn is_settled (& self) -> bool {
@@ -267,6 +290,24 @@ impl World {
 		while ! self.is_settled () {
 			self.step ();
 		}
+	}
+}
+
+#[test]
+pub fn test_fan_in () {
+	let world_or_err = World::new (
+		vec! [
+		(0, 2, 1),
+		(1, 2, 1),
+		],
+		vec! []
+	);
+	
+	if let Err (WorldCreationErr::FanIn) = world_or_err {
+		// Good
+	}
+	else {
+		panic! ("World creation should have thrown a FanIn error");
 	}
 }
 
