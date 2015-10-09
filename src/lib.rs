@@ -52,11 +52,6 @@ impl Wire {
 	}
 }
 
-enum JunctionDestiny {
-	Settled (Level),
-	Eventually (Delay),
-}
-
 impl World {
 	pub fn new (wire_tuples: Vec <(JunctionIndex, JunctionIndex, Time)>, gates: Vec <Gate>) -> World {
 		let wires: Vec <Wire> = wire_tuples.iter ().map (|tuple| Wire::new (tuple.0, tuple.1, tuple.2)).collect ();
@@ -175,11 +170,7 @@ impl World {
 				GateBehavior::Xor => inputs.iter ().fold (false, |sum, a| sum ^ *a),
 			};
 			
-			let destiny = self.get_junction_destiny (gate.output);
-			let destiny_level = match destiny {
-				JunctionDestiny::Settled (level) => level,
-				JunctionDestiny::Eventually (delay) => delay.level,
-			};
+			let destiny_level = self.get_junction_destiny (gate.output);
 			
 			if destiny_level != output {
 				new_delays.push (Delay {
@@ -187,8 +178,6 @@ impl World {
 					time: self.time,
 					level: output,
 				});
-				
-				println! ("Gate {} set to {}", gate.output, output);
 			}
 		};
 		
@@ -200,7 +189,7 @@ impl World {
 		self.sort_delays ();
 	}
 	
-	fn get_junction_destiny (& self, junction: JunctionIndex) -> JunctionDestiny {
+	fn get_junction_destiny (& self, junction: JunctionIndex) -> Level {
 		if self.delays.len () > 0 {
 			//println! ("Delays:");
 			
@@ -210,12 +199,12 @@ impl World {
 				//println! ("At {} junction {} will be {}", delay.time, delay.junction, delay.level);
 				
 				if delay.junction == junction {
-					return JunctionDestiny::Eventually (delay);
+					return delay.level;
 				}
 			}
 		}
 		
-		JunctionDestiny::Settled (self.junctions [junction])
+		self.junctions [junction]
 	}
 	
 	fn step_wires (&mut self) {
@@ -223,11 +212,7 @@ impl World {
 			let input = self.junctions [wire.input];
 			
 			// Don't push redundant delays
-			let destiny = self.get_junction_destiny (wire.output);
-			let destiny_level = match destiny {
-				JunctionDestiny::Settled (level) => level,
-				JunctionDestiny::Eventually (delay) => delay.level,
-			};
+			let destiny_level = self.get_junction_destiny (wire.output);
 			
 			if input != destiny_level {
 				self.delays.push (Delay {
