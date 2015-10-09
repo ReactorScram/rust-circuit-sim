@@ -62,9 +62,15 @@ impl Wire {
 	}
 }
 
+impl Circuit {
+	pub fn wires_from_tuples (wire_tuples: Vec <(JunctionIndex, JunctionIndex, Time)>) -> Vec <Wire> {
+		wire_tuples.iter ().map (|tuple| Wire::new (tuple.0, tuple.1, tuple.2)).collect ()
+	}
+}
+
 impl World {
 	pub fn new (wire_tuples: Vec <(JunctionIndex, JunctionIndex, Time)>, gates: Vec <Gate>) -> Result <World, WorldCreationErr> {
-		let wires: Vec <Wire> = wire_tuples.iter ().map (|tuple| Wire::new (tuple.0, tuple.1, tuple.2)).collect ();
+		let wires = Circuit::wires_from_tuples (wire_tuples);
 		
 		let max_junction_wires = wires.iter ().fold (0, |max, wire| cmp::max (max, cmp::max (wire.input, wire.output)));
 		let max_junction_gates = gates.iter ().fold (0, |max, gate| {
