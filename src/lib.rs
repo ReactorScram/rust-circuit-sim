@@ -82,11 +82,80 @@ impl Gate {
 }
 
 impl Circuit {
+	fn new_half_adder () -> Circuit {
+		Circuit {
+			wires: Circuit::wires_from_tuples (vec![
+				(0, 1, 4),
+				(0, 5, 8),
+				(2, 3, 4),
+				(6, 7, 3),
+				(8, 4, 8),
+				(8, 9, 4),
+			]),
+			gates: vec![
+				Gate {
+					inputs: vec![1, 4],
+					output: 2,
+					behavior: GateBehavior::And,
+				},
+				Gate {
+					inputs: vec![5, 9],
+					output: 6,
+					behavior: GateBehavior::Xor,
+				},
+			]
+		}
+	}
+	
+	fn new_full_adder () -> Circuit {
+		Circuit {
+			wires: Circuit::wires_from_tuples (vec![
+				(0, 3, 1),
+				(0, 5, 1),
+				(1, 4, 1),
+				(1, 6, 1),
+				(2, 11, 1),
+				(2, 9, 1),
+				(7, 10, 1),
+				(7, 8, 1),
+				(12, 14, 1),
+				(13, 15, 1),
+			]),
+			gates: vec![
+				Gate {
+					inputs: vec![3, 4],
+					output: 7,
+					behavior: GateBehavior::Xor,
+				},
+				Gate {
+					inputs: vec![10, 11],
+					output: 16,
+					behavior: GateBehavior::Xor,
+				},
+				Gate {
+					inputs: vec![8, 9],
+					output: 12,
+					behavior: GateBehavior::And,
+				},
+				Gate {
+					inputs: vec![5, 6],
+					output: 13,
+					behavior: GateBehavior::And,
+				},
+				Gate {
+					inputs: vec![14, 15],
+					output: 17,
+					behavior: GateBehavior::Or,
+				},
+			]
+		}
+	}
+	
 	fn wires_from_tuples (wire_tuples: Vec <(JunctionIndex, JunctionIndex, Time)>) -> Vec <Wire> {
 		wire_tuples.iter ().map (|tuple| Wire::new (tuple.0, tuple.1, tuple.2)).collect ()
 	}
 	
-	pub fn offset_junctions (&self, offset: JunctionIndex) -> Circuit {
+	fn offset_junctions (&self, offset: JunctionIndex) -> Circuit {
 		Circuit {
 			wires: self.wires.iter ().map (|wire| wire.offset_junctions (offset)).collect (),
 			gates: self.gates.iter ().map (|gate| gate.offset_junctions (offset)).collect (),
@@ -137,12 +206,7 @@ impl Circuit {
 }
 
 impl World {
-	pub fn new (wires: Vec <Wire>, gates: Vec <Gate>) -> Result <World, WorldCreationErr> {
-		let circuit = Circuit {
-			wires: wires,
-			gates: gates,
-		};
-		
+	pub fn new_from_circuit (circuit: Circuit) -> Result <World, WorldCreationErr> {
 		if circuit.has_fan_in () {
 			return Err (WorldCreationErr::FanIn);
 		}
@@ -155,71 +219,19 @@ impl World {
 		})
 	}
 	
+	pub fn new (wires: Vec <Wire>, gates: Vec <Gate>) -> Result <World, WorldCreationErr> {
+		World::new_from_circuit (Circuit {
+			wires: wires,
+			gates: gates,
+		})
+	}
+	
 	pub fn new_half_adder () -> World {
-		World::new (
-		Circuit::wires_from_tuples (vec![
-			(0, 1, 4),
-			(0, 5, 8),
-			(2, 3, 4),
-			(6, 7, 3),
-			(8, 4, 8),
-			(8, 9, 4),
-		]),
-		vec![
-			Gate {
-				inputs: vec![1, 4],
-				output: 2,
-				behavior: GateBehavior::And,
-			},
-			Gate {
-				inputs: vec![5, 9],
-				output: 6,
-				behavior: GateBehavior::Xor,
-			},
-		]).ok ().expect ("Half adder circuit is invalid")
+		World::new_from_circuit (Circuit::new_half_adder ()).ok ().expect ("Half adder circuit is invalid")
 	}
 	
 	pub fn new_full_adder () -> World {
-		World::new (
-		Circuit::wires_from_tuples (vec![
-			(0, 3, 1),
-			(0, 5, 1),
-			(1, 4, 1),
-			(1, 6, 1),
-			(2, 11, 1),
-			(2, 9, 1),
-			(7, 10, 1),
-			(7, 8, 1),
-			(12, 14, 1),
-			(13, 15, 1),
-		]),
-		vec![
-			Gate {
-				inputs: vec![3, 4],
-				output: 7,
-				behavior: GateBehavior::Xor,
-			},
-			Gate {
-				inputs: vec![10, 11],
-				output: 16,
-				behavior: GateBehavior::Xor,
-			},
-			Gate {
-				inputs: vec![8, 9],
-				output: 12,
-				behavior: GateBehavior::And,
-			},
-			Gate {
-				inputs: vec![5, 6],
-				output: 13,
-				behavior: GateBehavior::And,
-			},
-			Gate {
-				inputs: vec![14, 15],
-				output: 17,
-				behavior: GateBehavior::Or,
-			},
-		]).ok ().expect ("Full adder circuit is invalid")
+		World::new_from_circuit (Circuit::new_full_adder ()).ok ().expect ("Full adder circuit is invalid")
 	}
 	
 	pub fn is_settled (& self) -> bool {
@@ -419,4 +431,9 @@ pub fn test_full_adder () {
 	assert_outputs (&mut world, true, true, true, true, true);
 	assert_outputs (&mut world, true, false, true, true, false);
 	assert_outputs (&mut world, true, false, false, false, true);
+}
+
+#[test]
+pub fn test_ripple_adder () {
+	//let 
 }
