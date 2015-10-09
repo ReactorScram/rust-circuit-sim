@@ -14,7 +14,7 @@ pub enum GateBehavior {
 
 // In the future, at time "time", junction "junction" will be set to level "level".
 #[derive (Clone, Copy)]
-pub struct Delay {
+pub struct Signal {
 	junction: JunctionIndex,
 	level: Level,
 	time: Time,
@@ -39,7 +39,7 @@ pub struct World {
 	
 	junctions: Vec <Level>,
 	time: Time,
-	delays: Vec <Delay>,
+	signals: Vec <Signal>,
 }
 
 impl Wire {
@@ -73,7 +73,7 @@ impl World {
 		
 		World {
 			time: 0,
-			delays: vec![],
+			signals: vec![],
 			junctions: vec![false; junction_count],
 			wires: wires,
 			gates: gates,
@@ -148,16 +148,16 @@ impl World {
 	}
 	
 	pub fn is_settled (& self) -> bool {
-		self.delays.len () == 0
+		self.signals.len () == 0
 	}
 	
-	fn sort_delays (&mut self) {
+	fn sort_signals (&mut self) {
 		// This step is just a safety since we should be insertion sorting the delays already
-		self.delays.sort_by (|a, b| a.time.cmp (&b.time));
+		self.signals.sort_by (|a, b| a.time.cmp (&b.time));
 	}
 	
 	fn step_gates (&mut self) {
-		let mut new_delays = Vec::<Delay>::new ();
+		let mut new_signals = Vec::<Signal>::new ();
 		
 		// TODO: Optimize to only touch gates whose inputs have changed
 		for gate in self.gates.iter () {
@@ -173,7 +173,7 @@ impl World {
 			let destiny_level = self.get_junction_destiny (gate.output);
 			
 			if destiny_level != output {
-				new_delays.push (Delay {
+				new_signals.push (Signal {
 					junction: gate.output,
 					time: self.time,
 					level: output,
@@ -181,25 +181,23 @@ impl World {
 			}
 		};
 		
-		for delay in new_delays {
-			self.delays.push (delay);
+		for signal in new_signals {
+			self.signals.push (signal);
 		}
 		
 		// TODO: Proper insertion sorting
-		self.sort_delays ();
+		self.sort_signals ();
 	}
 	
 	fn get_junction_destiny (& self, junction: JunctionIndex) -> Level {
-		if self.delays.len () > 0 {
-			//println! ("Delays:");
-			
-			for i in 0 .. self.delays.len () {
-				let delay: Delay = self.delays [self.delays.len () - i - 1];
+		if self.signals.len () > 0 {
+			// Find the last signal that was heading for that junction
+			// Remember that junctions are not allowed to fan in
+			for i in 0 .. self.signals.len () {
+				let signals = self.signals [self.signals.len () - i - 1];
 				
-				//println! ("At {} junction {} will be {}", delay.time, delay.junction, delay.level);
-				
-				if delay.junction == junction {
-					return delay.level;
+				if signals.junction == junction {
+					return signals.level;
 				}
 			}
 		}
@@ -215,7 +213,7 @@ impl World {
 			let destiny_level = self.get_junction_destiny (wire.output);
 			
 			if input != destiny_level {
-				self.delays.push (Delay {
+				self.signals.push (Signal {
 					junction: wire.output,
 					time: self.time + wire.delay,
 					level: input,
@@ -224,27 +222,27 @@ impl World {
 		};
 		
 		// TODO: Proper insertion sorting
-		self.sort_delays ();
+		self.sort_signals ();
 	}
 	
-	fn propagate_delays (&mut self) {
-		let next_time = self.delays [0].time;
+	fn propagate_signals (&mut self) {
+		let next_time = self.signals [0].time;
 		
-		for delay in self.delays.iter () {
-			if delay.time == next_time {
-				self.junctions [delay.junction] = delay.level;
+		for signal in self.signals.iter () {
+			if signal.time == next_time {
+				self.junctions [signal.junction] = signal.level;
 				
-				println! ("Junction {} set to {}", delay.junction, delay.level);
+				println! ("Junction {} set to {}", signal.junction, signal.level);
 			}
 		}
 		
-		self.delays.retain (|delay| delay.time > next_time);
+		self.signals.retain (|signal| signal.time > next_time);
 		
 		self.time = next_time;
 	}
 	
 	pub fn set_junction (&mut self, junction: JunctionIndex, level: Level) {
-		self.delays.push (Delay {
+		self.signals.push (Signal {
 			junction: junction,
 			level: level,
 			time: self.time,
@@ -256,9 +254,9 @@ impl World {
 			return;
 		}
 		
-		self.sort_delays ();
+		self.sort_signals ();
 		
-		self.propagate_delays ();
+		self.propagate_signals ();
 		
 		self.step_gates ();
 		self.step_wires ();

@@ -4,11 +4,11 @@ See functions test_half_adder and test_full_adder for example usage.
 
 A World represents a simulation. A World has Wires, which can have propagation 
 delay, Gates which can perform logical operations, Junctions which hold a 
-voltage level, Delays which represent currently-propagating signals, and Time 
+voltage Level, Signals which represent currently-propagating signals, and Time 
 which is the current simulated time.
 
 Stepping the world advances the simulation time by the minimum amount of time
-required for at least one signal (Delay) to propagate to its destination.
+required for at least one Signal to propagate to its destination.
 
 The simulated time is a 64-bit integer. Because there is no floating-point 
 rounding, the simulation should be deterministic across platforms.
@@ -29,7 +29,6 @@ Gate, the result is computed and transmitted to the output instantly.
 
 TODO:
 
-* Rename Delay to DelayedSignal
 * Use an online insertion sort to keep the delays vec sorted, instead of
   doing a full sort every time.
 * Use a hash map from junctions to gates to avoid scanning every gate 
