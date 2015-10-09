@@ -34,6 +34,7 @@ pub struct Gate {
 }
 
 pub struct World {
+	// These don't change at runtime
 	wires: Vec <Wire>,
 	gates: Vec <Gate>,
 	
@@ -204,11 +205,14 @@ impl World {
 			}
 		};
 		
+		// TODO: Proper insertion sorting
+		// If the number of new signals is small compared to the number of 
+		// in-flight signals, I could do a few binary insertions sorts.
+		// If the number is large, it might be better to do a mergesort.
 		for signal in new_signals {
 			self.signals.push (signal);
 		}
 		
-		// TODO: Proper insertion sorting
 		self.sort_signals ();
 	}
 	
