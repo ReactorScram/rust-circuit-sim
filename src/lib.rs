@@ -41,6 +41,11 @@ pub struct Circuit {
 	gates: Vec <Gate>,
 }
 
+pub struct AssembledCircuit {
+	circuit: Circuit,
+	offsets: Vec <JunctionIndex>,
+}
+
 pub struct World {
 	// These don't change at runtime
 	circuit: Circuit,
@@ -155,6 +160,36 @@ impl Circuit {
 	
 	fn wires_from_tuples (wire_tuples: Vec <(JunctionIndex, JunctionIndex, Time)>) -> Vec <Wire> {
 		wire_tuples.iter ().map (|tuple| Wire::new (tuple.0, tuple.1, tuple.2)).collect ()
+	}
+	
+	fn assemble (circuits: & Vec <Circuit>) -> AssembledCircuit {
+		let mut offset = 0;
+		
+		let mut output = AssembledCircuit {
+			circuit: Circuit {
+				wires: vec![],
+				gates: vec![],
+			},
+			offsets: vec![],
+		};
+		
+		for circuit in circuits.iter () {
+			let offset_circuit = circuit.offset_junctions (offset);
+			
+			for wire in offset_circuit.wires.iter () {
+				output.circuit.wires.push (wire.clone ());
+			}
+			
+			for gate in offset_circuit.gates.iter () {
+				output.circuit.gates.push (gate.clone ());
+			}
+			
+			output.offsets.push (offset);
+			
+			offset += circuit.junction_count ();
+		}
+		
+		output
 	}
 	
 	fn offset_junctions (&self, offset: JunctionIndex) -> Circuit {
@@ -437,5 +472,61 @@ pub fn test_full_adder () {
 
 #[test]
 pub fn test_ripple_adder () {
-	let adders = vec![Circuit::new_full_adder (); 8];
+	// Construct a little-endian 8-bit ripple adder
+	let num_bits = 8;
+	
+	let adders = vec![Circuit::new_full_adder (); num_bits];
+	
+	let mut ripple_circuit = Circuit::assemble (&adders);
+	
+	// This only works because every block is identical and is a full adder
+	let input_a: Vec <JunctionIndex> = ripple_circuit.offsets.iter ().map (|offset| offset + 0).collect ();
+	let input_b: Vec <JunctionIndex> = ripple_circuit.offsets.iter ().map (|offset| offset + 1).collect ();
+	
+	for i in 0 .. num_bits - 1 {
+		// Tie each adder's carry output to the next adder's carry input, except for the last one
+		ripple_circuit.circuit.wires.push (Wire {
+			input: ripple_circuit.offsets [i] + 17,
+			output: ripple_circuit.offsets [i + 1] + 2,
+			delay: 1,
+		});
+	}
+	
+	let output = {
+		let mut output: Vec <JunctionIndex> = ripple_circuit.offsets.iter ().map (|offset| offset + 16).collect ();
+		// We get an extra MSB because of the carry
+		output.push (ripple_circuit.offsets [num_bits - 1] + 17);
+		output
+	};
+	
+	let mut world = World::new_from_circuit (ripple_circuit.circuit).ok ().expect ("Ripple adder circuit is invalid");
+	world.step_to_settled ();
+	
+	// 93
+	// LSB
+	world.set_junction (input_a [0], true);
+	world.set_junction (input_a [2], true);
+	world.set_junction (input_a [3], true);
+	world.set_junction (input_a [4], true);
+	// MSB
+	world.set_junction (input_a [6], true);
+	
+	// 19
+	// LSB
+	world.set_junction (input_b [0], true);
+	world.set_junction (input_b [1], true);
+	world.set_junction (input_b [4], true);
+	
+	world.step_to_settled ();
+	
+	// 19 + 93 = 112
+	assert_eq! (world.junctions [output [0]], false);
+	assert_eq! (world.junctions [output [1]], false);
+	assert_eq! (world.junctions [output [2]], false);
+	assert_eq! (world.junctions [output [3]], false);
+	assert_eq! (world.junctions [output [4]], true);
+	assert_eq! (world.junctions [output [5]], true);
+	assert_eq! (world.junctions [output [6]], true);
+	assert_eq! (world.junctions [output [7]], false);
+	assert_eq! (world.junctions [output [8]], false);
 }
