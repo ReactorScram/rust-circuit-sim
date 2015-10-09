@@ -33,10 +33,14 @@ pub struct Gate {
 	behavior: GateBehavior,
 }
 
-pub struct World {
-	// These don't change at runtime
+pub struct Circuit {
 	wires: Vec <Wire>,
 	gates: Vec <Gate>,
+}
+
+pub struct World {
+	// These don't change at runtime
+	circuit: Circuit,
 	
 	junctions: Vec <Level>,
 	time: Time,
@@ -99,8 +103,10 @@ impl World {
 			time: 0,
 			signals: vec![],
 			junctions: vec![false; junction_count],
-			wires: wires,
-			gates: gates,
+			circuit: Circuit {
+				wires: wires,
+				gates: gates,
+			},
 		})
 	}
 	
@@ -184,7 +190,7 @@ impl World {
 		let mut new_signals = Vec::<Signal>::new ();
 		
 		// TODO: Optimize to only touch gates whose inputs have changed
-		for gate in self.gates.iter () {
+		for gate in self.circuit.gates.iter () {
 			let inputs: Vec <bool> = gate.inputs.iter ().map (|i| self.junctions [*i]).collect ();
 			
 			let output = match gate.behavior {
@@ -233,7 +239,7 @@ impl World {
 	}
 	
 	fn step_wires (&mut self) {
-		for wire in self.wires.iter () {
+		for wire in self.circuit.wires.iter () {
 			let input = self.junctions [wire.input];
 			
 			// Don't push redundant delays
