@@ -137,9 +137,9 @@ impl Circuit {
 }
 
 impl World {
-	pub fn new (wire_tuples: Vec <(JunctionIndex, JunctionIndex, Time)>, gates: Vec <Gate>) -> Result <World, WorldCreationErr> {
+	pub fn new (wires: Vec <Wire>, gates: Vec <Gate>) -> Result <World, WorldCreationErr> {
 		let circuit = Circuit {
-			wires: Circuit::wires_from_tuples (wire_tuples),
+			wires: wires,
 			gates: gates,
 		};
 		
@@ -157,14 +157,14 @@ impl World {
 	
 	pub fn new_half_adder () -> World {
 		World::new (
-		vec![
+		Circuit::wires_from_tuples (vec![
 			(0, 1, 4),
 			(0, 5, 8),
 			(2, 3, 4),
 			(6, 7, 3),
 			(8, 4, 8),
 			(8, 9, 4),
-		],
+		]),
 		vec![
 			Gate {
 				inputs: vec![1, 4],
@@ -181,7 +181,7 @@ impl World {
 	
 	pub fn new_full_adder () -> World {
 		World::new (
-		vec![
+		Circuit::wires_from_tuples (vec![
 			(0, 3, 1),
 			(0, 5, 1),
 			(1, 4, 1),
@@ -192,7 +192,7 @@ impl World {
 			(7, 8, 1),
 			(12, 14, 1),
 			(13, 15, 1),
-		],
+		]),
 		vec![
 			Gate {
 				inputs: vec![3, 4],
@@ -351,10 +351,10 @@ impl World {
 #[test]
 pub fn test_fan_in () {
 	let world_or_err = World::new (
-		vec! [
+		Circuit::wires_from_tuples (vec! [
 		(0, 2, 1),
 		(1, 2, 1),
-		],
+		]),
 		vec! []
 	);
 	
