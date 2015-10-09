@@ -28,12 +28,14 @@ pub struct Wire {
 	delay: Time,
 }
 
+#[derive (Clone)]
 pub struct Gate {
 	inputs: Vec <JunctionIndex>,
 	output: JunctionIndex,
 	behavior: GateBehavior,
 }
 
+#[derive (Clone)]
 pub struct Circuit {
 	wires: Vec <Wire>,
 	gates: Vec <Gate>,
@@ -435,5 +437,5 @@ pub fn test_full_adder () {
 
 #[test]
 pub fn test_ripple_adder () {
-	//let 
+	let adders = vec![Circuit::new_full_adder (); 8];
 }
