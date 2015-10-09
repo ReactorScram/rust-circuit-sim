@@ -5,6 +5,7 @@ pub type JunctionIndex = usize;
 pub type Time = i64;
 pub type Level = bool;
 
+#[derive (Clone, Copy)]
 pub enum GateBehavior {
 	And,
 	Not,
@@ -60,20 +61,41 @@ impl Wire {
 			delay: delay,
 		}
 	}
-}
-
-impl Circuit {
-	pub fn wires_from_tuples (wire_tuples: Vec <(JunctionIndex, JunctionIndex, Time)>) -> Vec <Wire> {
-		wire_tuples.iter ().map (|tuple| Wire::new (tuple.0, tuple.1, tuple.2)).collect ()
+	
+	fn offset_junctions (&self, offset: JunctionIndex) -> Wire {
+		Wire {
+			input: self.input + offset,
+			output: self.output + offset,
+			delay: self.delay,
+		}
 	}
 }
 
-impl World {
-	pub fn new (wire_tuples: Vec <(JunctionIndex, JunctionIndex, Time)>, gates: Vec <Gate>) -> Result <World, WorldCreationErr> {
-		let wires = Circuit::wires_from_tuples (wire_tuples);
-		
-		let max_junction_wires = wires.iter ().fold (0, |max, wire| cmp::max (max, cmp::max (wire.input, wire.output)));
-		let max_junction_gates = gates.iter ().fold (0, |max, gate| {
+impl Gate {
+	fn offset_junctions (&self, offset: JunctionIndex) -> Gate {
+		Gate {
+			inputs: self.inputs.iter ().map (|junction| junction + offset).collect (),
+			output: self.output + offset,
+			behavior: self.behavior,
+		}
+	}
+}
+
+impl Circuit {
+	fn wires_from_tuples (wire_tuples: Vec <(JunctionIndex, JunctionIndex, Time)>) -> Vec <Wire> {
+		wire_tuples.iter ().map (|tuple| Wire::new (tuple.0, tuple.1, tuple.2)).collect ()
+	}
+	
+	pub fn offset_junctions (&self, offset: JunctionIndex) -> Circuit {
+		Circuit {
+			wires: self.wires.iter ().map (|wire| wire.offset_junctions (offset)).collect (),
+			gates: self.gates.iter ().map (|gate| gate.offset_junctions (offset)).collect (),
+		}
+	}
+	
+	fn max_junction (&self) -> JunctionIndex {
+		let max_junction_wires = self.wires.iter ().fold (0, |max, wire| cmp::max (max, cmp::max (wire.input, wire.output)));
+		let max_junction_gates = self.gates.iter ().fold (0, |max, gate| {
 			let max_input = gate.inputs.iter ().max ();
 			
 			let max_junction_gate = match max_input {
@@ -84,35 +106,52 @@ impl World {
 			cmp::max (max, max_junction_gate)
 		});
 		
-		let max_junction = cmp::max (max_junction_gates, max_junction_wires);
-		let junction_count = max_junction + 1;
+		cmp::max (max_junction_gates, max_junction_wires)
+	}
+	
+	fn junction_count (&self) -> JunctionIndex {
+		self.max_junction () + 1
+	}
+	
+	fn has_fan_in (&self) -> bool {
+		let mut junction_has_input = vec! [false; self.junction_count ()];
 		
-		let mut junction_has_input = vec! [false; junction_count];
-		
-		for wire in wires.iter () {
+		for wire in self.wires.iter () {
 			if junction_has_input [wire.output] {
-				return Err (WorldCreationErr::FanIn)
+				return true;
 			}
 			
 			junction_has_input [wire.output] = true;
 		}
 		
-		for gate in gates.iter () {
+		for gate in self.gates.iter () {
 			if junction_has_input [gate.output] {
-				return Err (WorldCreationErr::FanIn);
+				return true;
 			}
 			
 			junction_has_input [gate.output] = true;
 		}
 		
+		false
+	}
+}
+
+impl World {
+	pub fn new (wire_tuples: Vec <(JunctionIndex, JunctionIndex, Time)>, gates: Vec <Gate>) -> Result <World, WorldCreationErr> {
+		let circuit = Circuit {
+			wires: Circuit::wires_from_tuples (wire_tuples),
+			gates: gates,
+		};
+		
+		if circuit.has_fan_in () {
+			return Err (WorldCreationErr::FanIn);
+		}
+		
 		Ok (World {
 			time: 0,
 			signals: vec![],
-			junctions: vec![false; junction_count],
-			circuit: Circuit {
-				wires: wires,
-				gates: gates,
-			},
+			junctions: vec![false; circuit.junction_count ()],
+			circuit: circuit,
 		})
 	}
 	
