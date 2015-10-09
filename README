@@ -27,6 +27,14 @@ A Gate connects one or more input junctions to one output junction. Gates
 currently have no internal state and no delay factor. When a signal reaches a 
 Gate, the result is computed and transmitted to the output instantly.
 
+Update for October 8th:
+
+I refactored a lot so that it would be possible to programatically assemble an
+array of full adders into a single ripple adder circuit. I tested it with 8
+full adders, and added 19 + 93 = 112. The new top-level function is 
+test_ripple_adder. The assembling process needs more work, right now it would 
+be very difficult to do it for anything more complex than a ripple adder.
+
 TODO:
 
 * Use an online insertion sort to keep the delays vec sorted, instead of
