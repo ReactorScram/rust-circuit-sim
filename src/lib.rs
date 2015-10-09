@@ -231,8 +231,9 @@ impl World {
 		for signal in self.signals.iter () {
 			if signal.time == next_time {
 				self.junctions [signal.junction] = signal.level;
-				
-				println! ("Junction {} set to {}", signal.junction, signal.level);
+			}
+			else if signal.time > next_time {
+				break;
 			}
 		}
 		
